@@ -10,8 +10,8 @@ screen = pygame.display.set_mode((screen_width, screen_height))
 pygame.display.set_caption('От девет планини в десетта')
 
 # load image (move to assets)
-sun_img = pygame.image.load('img/sun.png')
-sky_img = pygame.image.load('img/sky.png')
+sun_img = pygame.image.load('Project/img/sun.png')
+sky_img = pygame.image.load('Project/img/sky.png')
 
 # game
 tile_size = 50
@@ -49,12 +49,61 @@ def draw_grid():
                          tile_size, 0), (line * tile_size, screen_height))
 
 
+class Player():
+    def __init__(self, x, y):
+        img = pygame.image.load('Project/img/guy1.png')
+        self.image = pygame.transform.scale(img, (40, 80))
+        self.rect = self.image.get_rect()
+        self.rect.x = x
+        self.rect.y = y
+        self.velocity_y = 0
+        self.jump = False
+        self.jump_count = 0
+
+    def update(self):
+
+        xchange = 0
+        ychange = 0
+        # get keys
+        key = pygame.key.get_pressed()
+        if key[pygame.K_LEFT]:
+            xchange -= 5
+        if key[pygame.K_RIGHT]:
+            xchange += 5
+        if key[pygame.K_UP] and self.jump == False and self.jump_count < 2:
+            self.velocity_y = -15
+            self.jump_count += 1
+            self.jumped = True
+        if key[pygame.K_UP] == False:
+            self.jumped = False
+            self.jump_count = 0
+
+        # gravity
+        if self.velocity_y <= 10:
+            self.velocity_y += 1
+
+        ychange += self.velocity_y
+
+        # check for collision
+
+        # update player
+        self.rect.x += xchange
+        self.rect.y += ychange
+
+        if self.rect.bottom > screen_height - 40:
+            self.rect.bottom = screen_height - 40
+            ychange = 0
+
+        # draw player
+        screen.blit(self.image, self.rect)
+
+
 class World:
     def __init__(self, data):
         self.tile_list = []
 
-        dirt_img = pygame.image.load('img/dirt.png')
-        grass_img = pygame.image.load('img/grass.png')
+        dirt_img = pygame.image.load('Project/img/dirt.png')
+        grass_img = pygame.image.load('Project/img/grass.png')
 
         row_count = 0
         for row in data:
@@ -92,6 +141,7 @@ class World:
 
 
 world = World(world_data)
+player = Player(100, screen_height - 130)
 
 run = True
 
@@ -101,8 +151,9 @@ while run:
     screen.blit(sun_img, (100, 120))
 
     world.draw()
+    player.update()
 
-    draw_grid()
+#    draw_grid()
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
