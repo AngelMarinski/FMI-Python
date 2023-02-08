@@ -72,6 +72,8 @@ class Player():
         self.rect = self.image.get_rect()
         self.rect.x = x
         self.rect.y = y
+        self.width = self.image.get_width()
+        self.height = self.image.get_height()
         self.velocity_y = 0
         self.jump = False
         self.jump_count = 0
@@ -92,6 +94,20 @@ class Player():
                 self.count = 0
         else:
             self.count += 1
+
+    def collision(self, xchange, ychange):
+        for tile in world.tile_list:
+            if tile[1].colliderect(self.rect.x + xchange, self.rect.y, self.width, self.height):
+                xchange = 0
+            if tile[1].colliderect(self.rect.x, self.rect.y + ychange, self.width, self.height):
+                if self.velocity_y < 0:
+                    ychange = tile[1].bottom - self.rect.top
+                    self.velocity_y = 0
+                elif self.velocity_y >= 0:
+                    ychange = tile[1].top - self.rect.bottom
+                    self.velocity_y = 0
+
+        return (xchange, ychange)
 
     def update(self):
         xchange = 0
@@ -130,12 +146,14 @@ class Player():
 
         # check for collision
 
+        xchange, ychange = self.collision(xchange, ychange)
+
         # update player
         self.rect.x += xchange
         self.rect.y += ychange
 
-        if self.rect.bottom > screen_height - 40:
-            self.rect.bottom = screen_height - 40
+        if self.rect.bottom > screen_height:
+            self.rect.bottom = screen_height
             ychange = 0
 
         # draw player
