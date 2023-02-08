@@ -3,6 +3,9 @@ from pygame.locals import *
 
 pygame.init()
 
+clock = pygame.time.Clock()
+fps = 60
+
 screen_width = 1000
 screen_height = 1000
 
@@ -15,6 +18,8 @@ sky_img = pygame.image.load('Project/img/sky.png')
 
 # game
 tile_size = 50
+
+
 world_data = [
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
     [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
@@ -51,25 +56,57 @@ def draw_grid():
 
 class Player():
     def __init__(self, x, y):
-        img = pygame.image.load('Project/img/guy1.png')
-        self.image = pygame.transform.scale(img, (40, 80))
+        self.images_right = []
+        self.images_left = []
+        self.index = 0
+        self.count = 0
+
+        for index in range(1, 5):
+            img_right = pygame.image.load(f'Project/img/guy{index}.png')
+            img_right = pygame.transform.scale(img_right, (40, 80))
+            img_left = pygame.transform.flip(img_right, True, False)
+            self.images_left.append(img_left)
+            self.images_right.append(img_right)
+
+        self.image = self.images_right[self.index]
         self.rect = self.image.get_rect()
         self.rect.x = x
         self.rect.y = y
         self.velocity_y = 0
         self.jump = False
         self.jump_count = 0
+        self.walk_cooldown = 7
+        self.direction = 0
+
+    def animation(self):
+        if self.count >= self.walk_cooldown:
+            self.index += 1
+            if self.index >= len(self.images_right):
+                self.index = 0
+
+            if self.direction > 0:
+                self.image = self.images_right[self.index]
+                self.count = 0
+            elif self.direction < 0:
+                self.image = self.images_left[self.index]
+                self.count = 0
+        else:
+            self.count += 1
 
     def update(self):
-
         xchange = 0
         ychange = 0
+
         # get keys
         key = pygame.key.get_pressed()
         if key[pygame.K_LEFT]:
             xchange -= 5
+            self.direction = -1
+            self.animation()
         if key[pygame.K_RIGHT]:
             xchange += 5
+            self.direction = 1
+            self.animation()
         if key[pygame.K_UP] and self.jump == False and self.jump_count < 2:
             self.velocity_y = -15
             self.jump_count += 1
@@ -77,6 +114,13 @@ class Player():
         if key[pygame.K_UP] == False:
             self.jumped = False
             self.jump_count = 0
+        if not key[pygame.K_LEFT] and not key[pygame.K_RIGHT]:
+            self.count = 0
+            self.index = 0
+            if self.direction > 0:
+                self.image = self.images_right[self.index]
+            elif self.direction < 0:
+                self.image = self.images_left[self.index]
 
         # gravity
         if self.velocity_y <= 10:
@@ -146,6 +190,8 @@ player = Player(100, screen_height - 130)
 run = True
 
 while run:
+
+    clock.tick(fps)
 
     screen.blit(sky_img, (0, 0))
     screen.blit(sun_img, (100, 120))
