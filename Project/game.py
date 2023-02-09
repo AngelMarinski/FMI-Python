@@ -18,7 +18,8 @@ sky_img = pygame.image.load('Project/img/sky.png')
 
 # game
 tile_size = 50
-
+game_over = 0
+reset_coordinates = (100, screen_height - 130)
 
 world_data = [
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
@@ -109,6 +110,13 @@ class Player():
 
         return (xchange, ychange)
 
+    def game_over_collisions(self):
+        global game_over
+        if pygame.sprite.spritecollide(self, blob_grp, False):
+            game_over += 1
+        elif pygame.sprite.spritecollide(self, lava_grp, False):
+            game_over += 1
+
     def update(self):
         xchange = 0
         ychange = 0
@@ -145,19 +153,47 @@ class Player():
         ychange += self.velocity_y
 
         # check for collision
-
         xchange, ychange = self.collision(xchange, ychange)
+
+        # check for enemy or lava collisions
+        self.game_over_collisions()
 
         # update player
         self.rect.x += xchange
         self.rect.y += ychange
 
-        if self.rect.bottom > screen_height:
-            self.rect.bottom = screen_height
-            ychange = 0
-
         # draw player
         screen.blit(self.image, self.rect)
+
+
+class Enemy(pygame.sprite.Sprite):
+    def __init__(self, x, y):
+        pygame.sprite.Sprite.__init__(self)
+        self.image = pygame.image.load('Project/img/blob.png')
+        self.rect = self.image.get_rect()
+        self.rect.x = x
+        self.rect.y = y
+        self.direction = 1
+        self.distance = 50
+        self.counter = 0
+
+    def update(self):
+        self.rect.x += self.direction
+        self.counter += 1
+
+        if abs(self.counter >= 50):
+            self.counter *= -1
+            self.direction *= -1
+
+
+class Lava(pygame.sprite.Sprite):
+    def __init__(self, x, y):
+        pygame.sprite.Sprite.__init__(self)
+        image = pygame.image.load('Project/img/lava.png')
+        self.image = pygame.transform.scale(image, (tile_size, tile_size//2))
+        self.rect = self.image.get_rect()
+        self.rect.x = x
+        self.rect.y = y
 
 
 class World:
@@ -178,14 +214,6 @@ class World:
                     img_rect.x = col_count * tile_size
                     img_rect.y = row_count * tile_size
                     self.tile_list.append((img, img_rect))
-
-                col_count += 1
-            row_count += 1
-
-        row_count = 0
-        for row in data:
-            col_count = 0
-            for tile in row:
                 if tile == 2:
                     img = pygame.transform.scale(
                         grass_img, (tile_size, tile_size))
@@ -193,7 +221,14 @@ class World:
                     img_rect.x = col_count * tile_size
                     img_rect.y = row_count * tile_size
                     self.tile_list.append((img, img_rect))
-
+                if tile == 3:
+                    blob = Enemy(col_count * tile_size,
+                                 row_count * tile_size + 15)
+                    blob_grp.add(blob)
+                if tile == 6:
+                    lava = Lava(col_count * tile_size,
+                                row_count * tile_size + (tile_size // 2))
+                    lava_grp.add(lava)
                 col_count += 1
             row_count += 1
 
@@ -202,10 +237,14 @@ class World:
             screen.blit(tile[0], tile[1])
 
 
+blob_grp = pygame.sprite.Group()
+lava_grp = pygame.sprite.Group()
 world = World(world_data)
-player = Player(100, screen_height - 130)
+player = Player(reset_coordinates[0], reset_coordinates[1])
 
 run = True
+
+previous = 0
 
 while run:
 
@@ -213,11 +252,23 @@ while run:
 
     screen.blit(sky_img, (0, 0))
     screen.blit(sun_img, (100, 120))
-
     world.draw()
+
+    blob_grp.update()
+    blob_grp.draw(screen)
+    lava_grp.draw(screen)
+
     player.update()
 
-#    draw_grid()
+    if game_over != previous:
+        player.rect.x, player.rect.y = reset_coordinates
+        # fix dying animation
+        # img_holder = player.image.copy()
+        # alpha = 128
+        # player.image.fill((255, 255, 255, alpha), None, pygame.BLEND_RGB_MULT)
+        # screen.blit(player.image, player.rect)
+        #player.image = player.dead_img
+        previous = game_over
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
