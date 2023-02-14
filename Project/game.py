@@ -19,6 +19,7 @@ sky_img = pygame.image.load('Project/img/sky.png')
 # game
 tile_size = 50
 game_over = 0
+lifes = 3
 reset_coordinates = (100, screen_height - 130)
 
 world_data = [
@@ -69,7 +70,9 @@ class Player():
             self.images_left.append(img_left)
             self.images_right.append(img_right)
 
+        self.dead_image = pygame.image.load('Project/img/ghost.png')
         self.image = self.images_right[self.index]
+        self.safe_player_img = self.image
         self.rect = self.image.get_rect()
         self.rect.x = x
         self.rect.y = y
@@ -77,9 +80,9 @@ class Player():
         self.height = self.image.get_height()
         self.velocity_y = 0
         self.jump = False
-        self.jump_count = 0
         self.walk_cooldown = 7
         self.direction = 0
+        self.in_air = False
 
     def animation(self):
         if self.count >= self.walk_cooldown:
@@ -97,6 +100,7 @@ class Player():
             self.count += 1
 
     def collision(self, xchange, ychange):
+        self.in_air = True
         for tile in world.tile_list:
             if tile[1].colliderect(self.rect.x + xchange, self.rect.y, self.width, self.height):
                 xchange = 0
@@ -107,63 +111,86 @@ class Player():
                 elif self.velocity_y >= 0:
                     ychange = tile[1].top - self.rect.bottom
                     self.velocity_y = 0
+                    self.in_air = False
 
         return (xchange, ychange)
 
     def game_over_collisions(self):
         global game_over
+        global lifes
         if pygame.sprite.spritecollide(self, blob_grp, False):
-            game_over += 1
+            game_over = -1
+            lifes -= 1
         elif pygame.sprite.spritecollide(self, lava_grp, False):
-            game_over += 1
+            game_over = -1
+            lifes -= 1
+
+    def reset(self):
+        global game_over
+        self.image = self.safe_player_img
+        game_over = 0
+        self.rect.x, self.rect.y = reset_coordinates
+        self.direction = 0
+
+    def game_over_animation(self):
+        global lifes
+        self.image = self.dead_image
+
+        if self.rect.y > 100:
+            self.rect.y -= 5
+        elif lifes != 0:
+            self.reset()
 
     def update(self):
         xchange = 0
         ychange = 0
 
-        # get keys
-        key = pygame.key.get_pressed()
-        if key[pygame.K_LEFT]:
-            xchange -= 5
-            self.direction = -1
-            self.animation()
-        if key[pygame.K_RIGHT]:
-            xchange += 5
-            self.direction = 1
-            self.animation()
-        if key[pygame.K_UP] and self.jump == False and self.jump_count < 2:
-            self.velocity_y = -15
-            self.jump_count += 1
-            self.jumped = True
-        if key[pygame.K_UP] == False:
-            self.jumped = False
-            self.jump_count = 0
-        if not key[pygame.K_LEFT] and not key[pygame.K_RIGHT]:
-            self.count = 0
-            self.index = 0
-            if self.direction > 0:
-                self.image = self.images_right[self.index]
-            elif self.direction < 0:
-                self.image = self.images_left[self.index]
+        if game_over == 0:
+            # get keys
+            key = pygame.key.get_pressed()
+            if key[pygame.K_LEFT]:
+                xchange -= 5
+                self.direction = -1
+                self.animation()
+            if key[pygame.K_RIGHT]:
+                xchange += 5
+                self.direction = 1
+                self.animation()
+            if key[pygame.K_UP] and self.jump == False and self.in_air == False:
+                self.velocity_y = -15
+                self.jumped = True
+            if key[pygame.K_UP] == False:
+                self.jumped = False
+            if not key[pygame.K_LEFT] and not key[pygame.K_RIGHT]:
+                self.count = 0
+                self.index = 0
+                if self.direction > 0:
+                    self.image = self.images_right[self.index]
+                elif self.direction < 0:
+                    self.image = self.images_left[self.index]
 
-        # gravity
-        if self.velocity_y <= 10:
-            self.velocity_y += 1
+            # gravity
+            if self.velocity_y <= 10:
+                self.velocity_y += 1
 
-        ychange += self.velocity_y
+            ychange += self.velocity_y
 
-        # check for collision
-        xchange, ychange = self.collision(xchange, ychange)
+            # check for collision
+            xchange, ychange = self.collision(xchange, ychange)
 
-        # check for enemy or lava collisions
-        self.game_over_collisions()
+            # check for enemy or lava collisions
+            self.game_over_collisions()
 
-        # update player
-        self.rect.x += xchange
-        self.rect.y += ychange
+            # update player
+            self.rect.x += xchange
+            self.rect.y += ychange
+
+        elif game_over == -1:
+            self.game_over_animation()
 
         # draw player
         screen.blit(self.image, self.rect)
+        #pygame.draw.rect(screen, (255, 255, 255), self.rect, 2)
 
 
 class Enemy(pygame.sprite.Sprite):
@@ -194,6 +221,48 @@ class Lava(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.x = x
         self.rect.y = y
+
+
+class Life:
+    def __init__(self):
+        full_heart = pygame.image.load('Project/img/heart.png')
+        empty_heart = pygame.image.load('Project/img/empty_heart.png')
+        self.full_heart_img = pygame.transform.smoothscale(
+            full_heart, (50, 50))
+        self.empty_heart_img = pygame.transform.smoothscale(
+            empty_heart, (50, 50))
+
+    def update(self):
+        global lifes
+
+        positionX = 60
+        positionY = 50
+        total_lifes = 3
+        for index in range(0, lifes):
+            screen.blit(self.full_heart_img, (positionX, positionY))
+            positionX += 70
+
+        for index in range(0, total_lifes - lifes):
+            screen.blit(self.empty_heart_img, (positionX, positionY))
+            positionX += 70
+
+
+class Button():
+    def __init__(self, x, y, image):
+        self.image = image
+        self.rect = self.image.get_rect()
+        self.rect.x = x
+        self.rect.y = y
+
+    def draw(self):
+        global lifes, game_over
+        pos = pygame.mouse.get_pos()
+        if self.rect.collidepoint(pos):
+            if pygame.mouse.get_pressed()[0] == 1:
+                lifes = 3
+                player.reset()
+
+        screen.blit(self.image, self.rect)
 
 
 class World:
@@ -241,6 +310,9 @@ blob_grp = pygame.sprite.Group()
 lava_grp = pygame.sprite.Group()
 world = World(world_data)
 player = Player(reset_coordinates[0], reset_coordinates[1])
+life = Life()
+restart_button = Button(screen_width//2 - 50, screen_height //
+                        2 + 100, pygame.image.load('Project/img/restart_btn.png'))
 
 run = True
 
@@ -254,21 +326,15 @@ while run:
     screen.blit(sun_img, (100, 120))
     world.draw()
 
+    life.update()
     blob_grp.update()
     blob_grp.draw(screen)
     lava_grp.draw(screen)
 
     player.update()
 
-    if game_over != previous:
-        player.rect.x, player.rect.y = reset_coordinates
-        # fix dying animation
-        # img_holder = player.image.copy()
-        # alpha = 128
-        # player.image.fill((255, 255, 255, alpha), None, pygame.BLEND_RGB_MULT)
-        # screen.blit(player.image, player.rect)
-        #player.image = player.dead_img
-        previous = game_over
+    if lifes == 0:
+        restart_button.draw()
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
