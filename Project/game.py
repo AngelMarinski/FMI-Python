@@ -1,6 +1,7 @@
 import pygame
 from pygame.locals import *
 import pickle
+import math
 
 pygame.init()
 
@@ -23,7 +24,7 @@ game_over = 0
 lifes = 3
 reset_coordinates = (100, screen_height - 130)
 menu = True
-level = 1
+level = 3
 score = 0
 
 # text section
@@ -223,6 +224,58 @@ class Player():
         #pygame.draw.rect(screen, (255, 255, 255), self.rect, 2)
 
 
+class Boss():
+    def __init__(self, x, y):
+        img_right = pygame.image.load('Project/img/FinalBoss.png')
+        self.img_right = pygame.transform.scale(img_right, (200, 300))
+        self.img_left = pygame.transform.flip(self.img_right, True, False)
+        self.rect = self.img_left.get_rect()
+        self.rect.x = x
+        self.rect.y = y
+        self.cooldown = 15
+        self.speed = 2
+        self.velocity_y = 0
+        self.width = self.img_right.get_width()
+        self.height = self.img_right.get_height()
+
+    def pos_towards_player(self, player_rect):
+        c = math.sqrt((player_rect.x - self.rect.x) ** 2 +
+                      (player_rect.y - self.rect.y - 300) ** 2)
+        try:
+            x = (player_rect.x - self.rect.x) / c
+            y = ((player_rect.y - self.rect.y) / c)
+            # - self.distance_above_player)
+        except ZeroDivisionError:
+            return False
+        return (x, 0)
+
+    def update(self):
+        global screen_height
+        position = self.pos_towards_player(player.rect)
+
+        if position:
+            new_post = self.collision(position[0], position[1])
+            self.rect.x = self.rect.x + new_post[0] * self.speed
+            self.rect.y = screen_height - 340
+
+        screen.blit(self.img_left, self.rect)
+
+    def collision(self, xchange, ychange):
+        for tile in world.tile_list:
+            if tile[1].colliderect(self.rect.x, self.rect.y + ychange, self.width, self.height):
+                if self.velocity_y < 0:
+                    ychange = tile[1].bottom - self.rect.top
+                    self.velocity_y = 0
+                elif self.velocity_y >= 0:
+                    print(f"self bottom {self.rect.bottom}")
+                    print(f"tile top {tile[1].top}")
+                    ychange = tile[1].top - self.rect.bottom
+                    self.velocity_y = 0
+
+        print(ychange)
+        return (xchange, ychange)
+
+
 class Enemy(pygame.sprite.Sprite):
     def __init__(self, x, y):
         pygame.sprite.Sprite.__init__(self)
@@ -382,6 +435,7 @@ world_data = pickle.load(pickle_in)
 world = World(world_data)
 
 player = Player(reset_coordinates[0], reset_coordinates[1])
+boss = Boss(reset_coordinates[0] + 700, reset_coordinates[1])
 life = Life()
 restart_button = Button(screen_width//2 - 50, screen_height //
                         2 + 100, pygame.image.load('Project/img/restart_btn.png'))
@@ -407,6 +461,12 @@ while run:
             run = False
         if start_button.draw():
             menu = False
+    elif level == 3:
+        world.draw()
+
+        life.update()
+        player.update()
+        boss.update()
     else:
         world.draw()
 
