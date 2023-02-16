@@ -229,51 +229,79 @@ class Boss():
         img_right = pygame.image.load('Project/img/FinalBoss.png')
         self.img_right = pygame.transform.scale(img_right, (200, 300))
         self.img_left = pygame.transform.flip(self.img_right, True, False)
-        self.rect = self.img_left.get_rect()
+        self.image = self.img_left
+        self.rect = self.image.get_rect()
         self.rect.x = x
-        self.rect.y = y
-        self.cooldown = 15
-        self.speed = 2
+        self.rect.y = 650
+        self.cooldown = 40
+        self.counter = 0
+        self.speed = 6
         self.velocity_y = 0
-        self.width = self.img_right.get_width()
-        self.height = self.img_right.get_height()
+        self.velocity_x = 0
+        self.width = self.image.get_width()
+        self.height = self.image.get_height()
+        self.in_air = False
 
     def pos_towards_player(self, player_rect):
-        c = math.sqrt((player_rect.x - self.rect.x) ** 2 +
-                      (player_rect.y - self.rect.y - 300) ** 2)
+        c = math.sqrt((player_rect.x - 200 - self.rect.x) ** 2)
         try:
             x = (player_rect.x - self.rect.x) / c
-            y = ((player_rect.y - self.rect.y) / c)
-            # - self.distance_above_player)
         except ZeroDivisionError:
             return False
-        return (x, 0)
+        return x
 
     def update(self):
         global screen_height
-        position = self.pos_towards_player(player.rect)
+        dx, dy = 0, 0
 
-        if position:
-            new_post = self.collision(position[0], position[1])
-            self.rect.x = self.rect.x + new_post[0] * self.speed
-            self.rect.y = screen_height - 340
+        if self.pos_towards_player(player.rect) >= 0:
+            self.image = self.img_right
+        else:
+            self.image = self.img_left
 
-        screen.blit(self.img_left, self.rect)
+        if self.cooldown <= self.counter:
+            if self.in_air == False:
+                self.velocity_x = self.pos_towards_player(player.rect)
+                self.velocity_y -= 20
+                self.in_air = True
+            if self.velocity_y <= 25:
+                self.velocity_y += 0.2
+            if self.rect.y == 650:
+                self.in_air = False
+
+            dy += self.velocity_y
+            new_post = self.collision(self.velocity_x * self.speed, dy)
+            dx = new_post[0]
+            if new_post[2] == True:
+                self.counter = 0
+                dx = 0
+
+            self.rect.x = self.rect.x + dx
+            self.rect.y += new_post[1]
+        else:
+            self.counter += 1
+
+        screen.blit(self.image, self.rect)
+        pygame.draw.rect(screen, (255, 255, 255), self.rect, 2)
 
     def collision(self, xchange, ychange):
+        landed = False
         for tile in world.tile_list:
+            if tile[1].colliderect(self.rect.x + xchange, self.rect.y, self.width, self.height):
+                xchange = 0
+                self.velocity_x = 0
             if tile[1].colliderect(self.rect.x, self.rect.y + ychange, self.width, self.height):
+                if self.velocity_y >= 0:
+                    ychange = tile[1].top - self.rect.bottom
+                    if tile[1].top - self.rect.bottom <= 50:
+                        landed = True
+                    self.velocity_y = 0
                 if self.velocity_y < 0:
                     ychange = tile[1].bottom - self.rect.top
                     self.velocity_y = 0
-                elif self.velocity_y >= 0:
-                    print(f"self bottom {self.rect.bottom}")
-                    print(f"tile top {tile[1].top}")
-                    ychange = tile[1].top - self.rect.bottom
-                    self.velocity_y = 0
 
-        print(ychange)
-        return (xchange, ychange)
+        print(f'x: {xchange} y: {ychange}')
+        return (xchange, ychange, landed)
 
 
 class Enemy(pygame.sprite.Sprite):
@@ -435,7 +463,7 @@ world_data = pickle.load(pickle_in)
 world = World(world_data)
 
 player = Player(reset_coordinates[0], reset_coordinates[1])
-boss = Boss(reset_coordinates[0] + 700, reset_coordinates[1])
+boss = Boss(reset_coordinates[0] + 650, reset_coordinates[1])
 life = Life()
 restart_button = Button(screen_width//2 - 50, screen_height //
                         2 + 100, pygame.image.load('Project/img/restart_btn.png'))
