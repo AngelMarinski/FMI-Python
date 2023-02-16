@@ -577,6 +577,15 @@ start_button = Button(screen_width // 2 - 350, screen_height //
 exit_button = Button(screen_width // 2 - 20, screen_height //
                      2, pygame.image.load('Project/img/exit_btn.png'))
 
+small_shot_card = Button(70, screen_height // 2 - 100,
+                         pygame.image.load('Project/img/small_shot_card.png'))
+medium_shot_card = Button(300, screen_height // 2 - 100,
+                          pygame.image.load('Project/img/medium_shot_card.png'))
+large_shot_card = Button(530, screen_height // 2 - 100,
+                         pygame.image.load('Project/img/large_shot_card.png'))
+xl_shot_card = Button(760, screen_height // 2 - 100,
+                      pygame.image.load('Project/img/xl_shot_card.png'))
+
 
 run = True
 
@@ -596,25 +605,29 @@ while run:
             menu = False
     elif level == final_level:
         world.draw()
+        draw_text('X ' + str(score), font_score,
+                  text_col, tile_size - 10, 10)
+        coin_grp.draw(screen)
 
-        # if wepon_menu:
+        if wepon_menu:
+            small_shot_card.draw()
+            medium_shot_card.draw()
+            large_shot_card.draw()
+            xl_shot_card.draw()
+        else:
+            if is_won == False:
 
-        if is_won == False:
+                player.update()
+                shot_grp.update()
+                shot_grp.draw(screen)
 
-            player.update()
-            shot_grp.update()
-            shot_grp.draw(screen)
+                boss.update()
 
-            boss.update()
-
-            draw_text('X ' + str(score), font_score,
-                      text_col, tile_size - 10, 10)
-            coin_grp.draw(screen)
-        elif lifes != 0:
-            draw_text('YOU WIN!', font_game_over, win_color,
-                      (screen_width // 2) - 140, screen_height // 2)
-            if restart_button.draw():
-                player.restart_game()
+            elif lifes != 0:
+                draw_text('YOU WIN!', font_game_over, win_color,
+                          (screen_width // 2) - 140, screen_height // 2)
+                if restart_button.draw():
+                    player.restart_game()
     else:
         world.draw()
 
