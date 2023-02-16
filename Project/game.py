@@ -23,15 +23,21 @@ tile_size = 50
 game_over = 0
 lifes = 3
 reset_coordinates = (100, screen_height - 130)
+boss_coordinates = (reset_coordinates[0] + 650, 650)
 menu = True
+wepon_menu = True
 level = 3
+final_level = 3
 score = 0
+shot_damage = 100
+is_won = False
 
 # text section
 font_score = pygame.font.SysFont('Bauhaus 93', 30)
 text_col = (255, 255, 255)
 game_over_color = (255, 0, 0)
 font_game_over = pygame.font.SysFont('Bauhaus 93', 70)
+win_color = (0, 255, 0)
 
 
 def draw_text(text, font, text_col, x, y):
@@ -73,8 +79,10 @@ class Player():
         self.velocity_y = 0
         self.jump = False
         self.walk_cooldown = 7
-        self.direction = 0
+        self.direction = 1
         self.in_air = False
+        self.shot_cooldown = 30
+        self.shot_counter = 30
 
     def animation(self):
         if self.count >= self.walk_cooldown:
@@ -107,8 +115,14 @@ class Player():
 
         return (xchange, ychange)
 
+    def boss_collision(self):
+        global game_over, lifes
+        if boss.rect.colliderect(self.rect.x, self.rect.y, self.width, self.height) or boss.rect.colliderect(self.rect.x, self.rect.y, self.width, self.height):
+            game_over = -1
+            lifes = 0
+
     def restart_game(self):
-        global lifes, world, world_data, score, level
+        global lifes, world, world_data, score, level, is_won
         score = 0
         lifes = 3
         level = 1
@@ -117,6 +131,15 @@ class Player():
         lava_grp.empty()
         exit_grp.empty()
         coin_grp.empty()
+
+        dummy_coin = Coin(tile_size//2, tile_size//2)
+        coin_grp.add(dummy_coin)
+
+        boss.rect.x, boss.rect.y = boss_coordinates
+        boss.target_health = 500
+        boss.current_health = 500
+        is_won = False
+
         pickle_in = open(f'Project/level{level}_data', 'rb')
         world_data = pickle.load(pickle_in)
         world = World(world_data)
@@ -171,6 +194,7 @@ class Player():
             self.reset()
 
     def update(self):
+        global level
         xchange = 0
         ychange = 0
 
@@ -198,6 +222,14 @@ class Player():
                     self.image = self.images_right[self.index]
                 elif self.direction < 0:
                     self.image = self.images_left[self.index]
+            if key[pygame.K_SPACE] and level == final_level and self.shot_counter >= self.shot_cooldown:
+                shot = Shot(pygame.image.load('Project/img/xl_shot.png'),
+                            10, self.rect.x, self.rect.y, self.direction)
+
+                shot_grp.add(shot)
+                self.shot_counter = 0
+
+            self.shot_counter += 1
 
             # gravity
             if self.velocity_y <= 10:
@@ -210,6 +242,10 @@ class Player():
 
             # check for enemy or lava collisions
             self.game_over_collisions()
+
+            # check for collision with boss
+            self.boss_collision()
+
             self.level_passed()
             self.is_coin_picked()
             # update player
@@ -229,6 +265,10 @@ class Boss():
         img_right = pygame.image.load('Project/img/FinalBoss.png')
         self.img_right = pygame.transform.scale(img_right, (200, 300))
         self.img_left = pygame.transform.flip(self.img_right, True, False)
+        image_jump = pygame.image.load('Project/img/finalBossJump.png')
+        self.image_jump_right = pygame.transform.scale(image_jump, (225, 325))
+        self.image_jump_left = pygame.transform.flip(
+            self.image_jump_right, True, False)
         self.image = self.img_left
         self.rect = self.image.get_rect()
         self.rect.x = x
@@ -241,6 +281,43 @@ class Boss():
         self.width = self.image.get_width()
         self.height = self.image.get_height()
         self.in_air = False
+        # health bar
+        self.max_health = 500
+        self.current_health = 500
+        self.target_health = 500
+        self.health_bar_length = 400
+        self.health_bar_ration = self.max_health / self.health_bar_length
+        self.health_change_speed = 5
+        self.health_counter = 0
+
+    def get_damage(self):
+        global shot_damage, is_won
+        if pygame.sprite.spritecollide(self, shot_grp, True):
+            self.target_health -= shot_damage
+            if self.target_health <= 0:
+                self.target_health = 0
+                is_won = True
+
+    def advanced_health(self):
+        global screen_width
+        transition_width = 0
+        transition_color = (255, 0, 0)
+
+        if self.current_health > self.target_health:
+            self.current_health -= self.health_change_speed
+            transition_width = int(
+                (self.target_health - self.current_health) / self.health_bar_ration)
+            transition_color = (255, 255, 0)
+
+        health_bar_rect = pygame.Rect(
+            screen_width // 2 - 200, 70, self.current_health / self.health_bar_ration, 25)
+        transition_bar_rect = pygame.Rect(
+            health_bar_rect.right, 70, transition_width, 25)
+
+        pygame.draw.rect(screen, (255, 0, 0), health_bar_rect)
+        pygame.draw.rect(screen, transition_color, transition_bar_rect)
+        pygame.draw.rect(screen, (255, 255, 255),
+                         (screen_width // 2 - 200, 70, self.health_bar_length, 25), 4)
 
     def pos_towards_player(self, player_rect):
         c = math.sqrt((player_rect.x - 200 - self.rect.x) ** 2)
@@ -255,9 +332,15 @@ class Boss():
         dx, dy = 0, 0
 
         if self.pos_towards_player(player.rect) >= 0:
-            self.image = self.img_right
+            if self.in_air:
+                self.image = self.image_jump_right
+            else:
+                self.image = self.img_right
         else:
-            self.image = self.img_left
+            if self.in_air:
+                self.image = self.image_jump_left
+            else:
+                self.image = self.img_left
 
         if self.cooldown <= self.counter:
             if self.in_air == False:
@@ -281,8 +364,10 @@ class Boss():
         else:
             self.counter += 1
 
+        self.get_damage()
+        self.advanced_health()
         screen.blit(self.image, self.rect)
-        pygame.draw.rect(screen, (255, 255, 255), self.rect, 2)
+        #pygame.draw.rect(screen, (255, 255, 255), self.rect, 2)
 
     def collision(self, xchange, ychange):
         landed = False
@@ -300,7 +385,6 @@ class Boss():
                     ychange = tile[1].bottom - self.rect.top
                     self.velocity_y = 0
 
-        print(f'x: {xchange} y: {ychange}')
         return (xchange, ychange, landed)
 
 
@@ -322,6 +406,28 @@ class Enemy(pygame.sprite.Sprite):
         if abs(self.counter >= 50):
             self.counter *= -1
             self.direction *= -1
+
+
+class Shot(pygame.sprite.Sprite):
+    def __init__(self, img, damage, x, y, direction):
+        pygame.sprite.Sprite.__init__(self)
+        self.image = img
+        self.image_right = img
+        self.image_left = pygame.transform.flip(self.image_right, True, False)
+        self.rect = self.image_right.get_rect()
+        self.damage = damage
+        self.rect.x = x
+        self.rect.y = y
+        self.direction = direction
+        self.speed = 20
+
+    def update(self):
+        if self.direction > 0:
+            self.image = self.image_right
+        else:
+            self.image = self.image_left
+
+        self.rect.x += self.direction * self.speed
 
 
 class Lava(pygame.sprite.Sprite):
@@ -391,8 +497,6 @@ class Button():
         pos = pygame.mouse.get_pos()
         if self.rect.collidepoint(pos):
             if pygame.mouse.get_pressed()[0] == 1:
-                # lifes = 3
-                # player.reset()
                 return True
 
         screen.blit(self.image, self.rect)
@@ -454,6 +558,7 @@ blob_grp = pygame.sprite.Group()
 lava_grp = pygame.sprite.Group()
 exit_grp = pygame.sprite.Group()
 coin_grp = pygame.sprite.Group()
+shot_grp = pygame.sprite.Group()
 
 dummy_coin = Coin(tile_size//2, tile_size//2)
 coin_grp.add(dummy_coin)
@@ -489,12 +594,27 @@ while run:
             run = False
         if start_button.draw():
             menu = False
-    elif level == 3:
+    elif level == final_level:
         world.draw()
 
-        life.update()
-        player.update()
-        boss.update()
+        # if wepon_menu:
+
+        if is_won == False:
+
+            player.update()
+            shot_grp.update()
+            shot_grp.draw(screen)
+
+            boss.update()
+
+            draw_text('X ' + str(score), font_score,
+                      text_col, tile_size - 10, 10)
+            coin_grp.draw(screen)
+        elif lifes != 0:
+            draw_text('YOU WIN!', font_game_over, win_color,
+                      (screen_width // 2) - 140, screen_height // 2)
+            if restart_button.draw():
+                player.restart_game()
     else:
         world.draw()
 
@@ -507,13 +627,13 @@ while run:
 
         player.update()
 
-        if lifes == 0:
-            draw_text('Game Over', font_game_over, game_over_color,
-                      screen_width // 2 - 140, screen_height // 2)
-            if restart_button.draw():
-                player.restart_game()
-
         draw_text('X ' + str(score), font_score, text_col, tile_size - 10, 10)
+
+    if lifes == 0:
+        draw_text('Game Over', font_game_over, game_over_color,
+                  screen_width // 2 - 140, screen_height // 2)
+        if restart_button.draw():
+            player.restart_game()
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
