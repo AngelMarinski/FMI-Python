@@ -1,8 +1,11 @@
 import pygame
 from pygame.locals import *
+from pygame import mixer
 import pickle
 import math
 
+pygame.mixer.pre_init(44100, -16, 2, 512)
+mixer.init()
 pygame.init()
 
 clock = pygame.time.Clock()
@@ -17,6 +20,19 @@ pygame.display.set_caption('От девет планини в десетта')
 # load image (move to assets)
 sun_img = pygame.image.load('Project/img/sun.png')
 sky_img = pygame.image.load('Project/img/sky.png')
+
+# load sounds
+coin_fx = pygame.mixer.Sound('Project/img/coin.wav')
+coin_fx.set_volume(0.5)
+
+jump_fx = pygame.mixer.Sound('Project/img/jump.wav')
+jump_fx.set_volume(0.5)
+
+game_over_fx = pygame.mixer.Sound('Project/img/game_over.wav')
+game_over_fx.set_volume(0.5)
+
+pygame.mixer.music.load('Project/img/music.wav')
+pygame.mixer.music.play(-1, 0.0, 5000)
 
 # game
 tile_size = 50
@@ -33,6 +49,7 @@ score = 0
 shot_damage = 100
 is_won = False
 
+# load shots
 fire_shot_img = pygame.image.load('Project/img/small_shot.png')
 fire_shot_damage = 5
 fire_shot_price = 2
@@ -140,6 +157,24 @@ class Player():
             game_over = -1
             lifes = 0
 
+    def plaform_collision(self, xchange, ychange):
+        collision = 20
+        for platform in platform_grp:
+            if platform.rect.colliderect(self.rect.x + xchange, self.rect.y, self.width, self.height):
+                xchange = 0
+            if platform.rect.colliderect(self.rect.x, self.rect.y + ychange, self.width, self.height):
+                if abs((self.rect.top + ychange) - platform.rect.bottom) < collision:
+                    self.velocity_y = 0
+                    ychange = platform.rect.bottom - self.rect.top
+                elif abs(self.rect.bottom + ychange - platform.rect.top) < collision:
+                    self.rect.bottom = platform.rect.top - 1
+                    self.in_air = False
+                    ychange = 0
+                if platform.move_x:
+                    self.rect.x += platform.direction
+
+        return (xchange, ychange)
+
     def restart_game(self):
         global lifes, world, world_data, score, level, is_won
         score = 0
@@ -150,6 +185,7 @@ class Player():
         lava_grp.empty()
         exit_grp.empty()
         coin_grp.empty()
+        platform_grp.empty()
 
         dummy_coin = Coin(tile_size//2, tile_size//2)
         coin_grp.add(dummy_coin)
@@ -187,12 +223,14 @@ class Player():
 
         if self.rect.y > 100:
             self.rect.y -= 5
+            game_over_fx.play()
         elif lifes != 0:
             self.reset()
 
     def is_coin_picked(self):
         global score
         if pygame.sprite.spritecollide(self, coin_grp, True):
+            coin_fx.play()
             score += 1
 
     def level_passed(self):
@@ -204,6 +242,7 @@ class Player():
             lava_grp.empty()
             exit_grp.empty()
             coin_grp.empty()
+            platform_grp.empty()
 
             if level == final_level:
                 weapon_menu = True
@@ -229,8 +268,8 @@ class Player():
                 xchange += 5
                 self.direction = 1
                 self.animation()
-            if key[pygame.K_UP] and self.jump == False:
-                # and self.in_air == False:
+            if key[pygame.K_UP] and self.jump == False and self.in_air == False:
+                jump_fx.play()
                 self.velocity_y = -15
                 self.jumped = True
             if key[pygame.K_UP] == False:
@@ -260,7 +299,7 @@ class Player():
 
             # check for collision
             xchange, ychange = self.collision(xchange, ychange)
-
+            xchange, ychange = self.plaform_collision(xchange, ychange)
             # check for enemy or lava collisions
             self.game_over_collisions()
 
@@ -462,6 +501,33 @@ class Lava(pygame.sprite.Sprite):
         self.rect.y = y
 
 
+class Plaftorm(pygame.sprite.Sprite):
+    def __init__(self, x, y, move_x, move_y):
+        pygame.sprite.Sprite.__init__(self)
+        image = pygame.image.load('Project/img/platform.png')
+        self.image = pygame.transform.scale(image, (tile_size, tile_size // 2))
+        self.rect = self.image.get_rect()
+        self.rect.x = x
+        self.rect.y = y
+        self.direction = 1
+        self.distance = 50
+        self.counter = 0
+        self.move_x = move_x
+        self.move_y = move_y
+
+    def update(self):
+        if self.move_x:
+            self.rect.x += self.direction
+        elif self.move_y:
+            self.rect.y += self.direction
+
+        self.counter += 1
+
+        if abs(self.counter >= 50):
+            self.counter *= -1
+            self.direction *= -1
+
+
 class Exit(pygame.sprite.Sprite):
     def __init__(self, x, y):
         pygame.sprite.Sprite.__init__(self)
@@ -554,6 +620,14 @@ class World:
                     blob = Enemy(col_count * tile_size,
                                  row_count * tile_size + 15)
                     blob_grp.add(blob)
+                if tile == 4:
+                    platform = Plaftorm(col_count * tile_size,
+                                        row_count * tile_size, 1, 0)
+                    platform_grp.add(platform)
+                if tile == 5:
+                    platform = Plaftorm(col_count * tile_size,
+                                        row_count * tile_size, 0, 1)
+                    platform_grp.add(platform)
                 if tile == 6:
                     lava = Lava(col_count * tile_size,
                                 row_count * tile_size + (tile_size // 2))
@@ -581,6 +655,7 @@ lava_grp = pygame.sprite.Group()
 exit_grp = pygame.sprite.Group()
 coin_grp = pygame.sprite.Group()
 shot_grp = pygame.sprite.Group()
+platform_grp = pygame.sprite.Group()
 
 dummy_coin = Coin(tile_size//2, tile_size//2)
 coin_grp.add(dummy_coin)
@@ -697,6 +772,8 @@ while run:
         lava_grp.draw(screen)
         exit_grp.draw(screen)
         coin_grp.draw(screen)
+        platform_grp.update()
+        platform_grp.draw(screen)
 
         player.update()
 
@@ -705,6 +782,7 @@ while run:
     if lifes == 0:
         draw_text('Game Over', font_game_over, game_over_color,
                   screen_width // 2 - 140, screen_height // 2)
+
         if restart_button.draw():
             player.restart_game()
 
