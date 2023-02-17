@@ -12,6 +12,7 @@
 * "Right" Arrow - Move Right
 * Space - Shooting (unlocked only on final level)
 
+## Gameplay
 ![image](https://user-images.githubusercontent.com/77447043/219722970-cf21eeba-8693-42bf-b072-5f1a3179c87c.png)
 ![image](https://user-images.githubusercontent.com/77447043/219723324-1b4e33c3-cf78-437c-bf0e-868e5c8968f3.png)
 ![image](https://user-images.githubusercontent.com/77447043/219723547-72251e77-76b8-47e7-a507-be7e7ffbcb94.png)
