@@ -3,89 +3,23 @@ from pygame.locals import *
 from pygame import mixer
 import pickle
 import math
-
-pygame.mixer.pre_init(44100, -16, 2, 512)
-mixer.init()
-pygame.init()
+from constants import *
+from sprites import *
+from world import *
+from buttons import *
 
 clock = pygame.time.Clock()
-fps = 60
 
-screen_width = 1000
-screen_height = 1000
-
-screen = pygame.display.set_mode((screen_width, screen_height))
 pygame.display.set_caption('От девет планини в десетта')
-
-# load image (move to assets)
-sun_img = pygame.image.load('Project/img/sun.png')
-sky_img = pygame.image.load('Project/img/sky.png')
-
-# load sounds
-coin_fx = pygame.mixer.Sound('Project/img/coin.wav')
-coin_fx.set_volume(0.5)
-
-jump_fx = pygame.mixer.Sound('Project/img/jump.wav')
-jump_fx.set_volume(0.5)
-
-boss_jump_fx = pygame.mixer.Sound('Project/img/final_boss_jump.mp3')
-boss_jump_fx.set_volume(0.6)
-
-shooting_fx = pygame.mixer.Sound('Project/img/shooting_sound.mp3')
-shooting_fx.set_volume(0.5)
-
-game_over_fx = pygame.mixer.Sound('Project/img/game_over.wav')
-game_over_fx.set_volume(0.5)
-
-pygame.mixer.music.load('Project/img/music.wav')
-pygame.mixer.music.play(-1, 0.0, 5000)
-
-# game
-tile_size = 50
-game_over = 0
-lifes = 3
-reset_coordinates = (100, screen_height - 130)
-boss_coordinates = (reset_coordinates[0] + 650, 650)
-menu = True
-weapon_menu = True
-weapon_menu_text = False
-level = 1
-final_level = 3
-score = 0
-shot_damage = 100
-is_won = False
-
-# load shots
-fire_shot_img = pygame.image.load('Project/img/small_shot.png')
-fire_shot_damage = 5
-fire_shot_price = 2
-
-fire_blast_img = pygame.image.load('Project/img/medium_shot.png')
-fire_blast_damage = 10
-fire_blast_price = 5
-
-fire_wave_img = pygame.image.load('Project/img/large_shot.png')
-fire_wave_damage = 25
-fire_wave_price = 10
-
-fire_ball_img = pygame.image.load('Project/img/xl_shot.png')
-fire_ball_damage = 50
-fire_ball_price = 16
-
-# text section
-font_score = pygame.font.SysFont('Bauhaus 93', 30)
-text_col = (255, 255, 255)
-game_over_color = (255, 0, 0)
-font_game_over = pygame.font.SysFont('Bauhaus 93', 70)
-win_color = (0, 255, 0)
 
 
 def draw_text(text, font, text_col, x, y):
     img = font.render(text, True, text_col)
     screen.blit(img, (x, y))
 
-
 # draw grid for better understanding
+
+
 def draw_grid():
     for line in range(0, 20):
         pygame.draw.line(screen, (255, 255, 255), (0, line *
@@ -248,6 +182,7 @@ class Player():
             lava_grp.empty()
             exit_grp.empty()
             coin_grp.empty()
+            coin_grp.add(dummy_coin)
             platform_grp.empty()
 
             if level == final_level:
@@ -415,6 +350,8 @@ class Boss():
             if self.in_air == False:
                 boss_jump_fx.play()
                 self.velocity_x = self.pos_towards_player(player.rect)
+                if self.velocity_x > 0:
+                    self.velocity_x = self.velocity_x / 3
                 self.velocity_y -= 20
                 self.in_air = True
             if self.velocity_y <= 25:
@@ -458,106 +395,6 @@ class Boss():
         return (xchange, ychange, landed)
 
 
-class Enemy(pygame.sprite.Sprite):
-    def __init__(self, x, y):
-        pygame.sprite.Sprite.__init__(self)
-        self.image = pygame.image.load('Project/img/blob.png')
-        self.rect = self.image.get_rect()
-        self.rect.x = x
-        self.rect.y = y
-        self.direction = 1
-        self.distance = 50
-        self.counter = 0
-
-    def update(self):
-        self.rect.x += self.direction
-        self.counter += 1
-
-        if abs(self.counter >= 50):
-            self.counter *= -1
-            self.direction *= -1
-
-
-class Shot(pygame.sprite.Sprite):
-    def __init__(self, img, damage, x, y, direction):
-        pygame.sprite.Sprite.__init__(self)
-        self.image = img
-        self.image_right = img
-        self.image_left = pygame.transform.flip(self.image_right, True, False)
-        self.rect = self.image_right.get_rect()
-        self.damage = damage
-        self.rect.x = x
-        self.rect.y = y
-        self.direction = direction
-        self.speed = 20
-
-    def update(self):
-        if self.direction > 0:
-            self.image = self.image_right
-        else:
-            self.image = self.image_left
-
-        self.rect.x += self.direction * self.speed
-
-
-class Lava(pygame.sprite.Sprite):
-    def __init__(self, x, y):
-        pygame.sprite.Sprite.__init__(self)
-        image = pygame.image.load('Project/img/lava.png')
-        self.image = pygame.transform.scale(image, (tile_size, tile_size//2))
-        self.rect = self.image.get_rect()
-        self.rect.x = x
-        self.rect.y = y
-
-
-class Plaftorm(pygame.sprite.Sprite):
-    def __init__(self, x, y, move_x, move_y):
-        pygame.sprite.Sprite.__init__(self)
-        image = pygame.image.load('Project/img/platform.png')
-        self.image = pygame.transform.scale(image, (tile_size, tile_size // 2))
-        self.rect = self.image.get_rect()
-        self.rect.x = x
-        self.rect.y = y
-        self.direction = 1
-        self.distance = 50
-        self.counter = 0
-        self.move_x = move_x
-        self.move_y = move_y
-
-    def update(self):
-        if self.move_x:
-            self.rect.x += self.direction
-        elif self.move_y:
-            self.rect.y += self.direction
-
-        self.counter += 1
-
-        if abs(self.counter >= 50):
-            self.counter *= -1
-            self.direction *= -1
-
-
-class Exit(pygame.sprite.Sprite):
-    def __init__(self, x, y):
-        pygame.sprite.Sprite.__init__(self)
-        image = pygame.image.load('Project/img/exit.png')
-        self.image = pygame.transform.scale(
-            image, (tile_size, int(tile_size * 1.5)))
-        self.rect = self.image.get_rect()
-        self.rect.x = x
-        self.rect.y = y
-
-
-class Coin(pygame.sprite.Sprite):
-    def __init__(self, x, y):
-        pygame.sprite.Sprite.__init__(self)
-        image = pygame.image.load('Project/img/coin.png')
-        self.image = pygame.transform.scale(
-            image, (tile_size//2, tile_size//2))
-        self.rect = self.image.get_rect()
-        self.rect.center = (x, y)
-
-
 class Life:
     def __init__(self):
         full_heart = pygame.image.load('Project/img/heart.png')
@@ -582,120 +419,13 @@ class Life:
             positionX += 70
 
 
-class Button():
-    def __init__(self, x, y, image):
-        self.image = image
-        self.rect = self.image.get_rect()
-        self.rect.x = x
-        self.rect.y = y
-
-    def draw(self):
-        global lifes, game_over
-        pos = pygame.mouse.get_pos()
-        if self.rect.collidepoint(pos):
-            if pygame.mouse.get_pressed()[0] == 1:
-                return True
-
-        screen.blit(self.image, self.rect)
-        return False
-
-
-class World:
-    def __init__(self, data):
-        self.tile_list = []
-
-        dirt_img = pygame.image.load('Project/img/dirt.png')
-        grass_img = pygame.image.load('Project/img/grass.png')
-
-        row_count = 0
-        for row in data:
-            col_count = 0
-            for tile in row:
-                if tile == 1:
-                    img = pygame.transform.scale(
-                        dirt_img, (tile_size, tile_size))
-                    img_rect = img.get_rect()
-                    img_rect.x = col_count * tile_size
-                    img_rect.y = row_count * tile_size
-                    self.tile_list.append((img, img_rect))
-                if tile == 2:
-                    img = pygame.transform.scale(
-                        grass_img, (tile_size, tile_size))
-                    img_rect = img.get_rect()
-                    img_rect.x = col_count * tile_size
-                    img_rect.y = row_count * tile_size
-                    self.tile_list.append((img, img_rect))
-                if tile == 3:
-                    blob = Enemy(col_count * tile_size,
-                                 row_count * tile_size + 15)
-                    blob_grp.add(blob)
-                if tile == 4:
-                    platform = Plaftorm(col_count * tile_size,
-                                        row_count * tile_size, 1, 0)
-                    platform_grp.add(platform)
-                if tile == 5:
-                    platform = Plaftorm(col_count * tile_size,
-                                        row_count * tile_size, 0, 1)
-                    platform_grp.add(platform)
-                if tile == 6:
-                    lava = Lava(col_count * tile_size,
-                                row_count * tile_size + (tile_size // 2))
-                    lava_grp.add(lava)
-                if tile == 7:
-                    coin = Coin(col_count * tile_size + (tile_size // 2),
-                                row_count * tile_size + (tile_size // 2))
-                    coin_grp.add(coin)
-
-                if tile == 8:
-                    exit = Exit(col_count * tile_size,
-                                row_count * tile_size - tile_size // 2)
-                    exit_grp.add(exit)
-
-                col_count += 1
-            row_count += 1
-
-    def draw(self):
-        for tile in self.tile_list:
-            screen.blit(tile[0], tile[1])
-
-
-blob_grp = pygame.sprite.Group()
-lava_grp = pygame.sprite.Group()
-exit_grp = pygame.sprite.Group()
-coin_grp = pygame.sprite.Group()
-shot_grp = pygame.sprite.Group()
-platform_grp = pygame.sprite.Group()
-
-dummy_coin = Coin(tile_size//2, tile_size//2)
-coin_grp.add(dummy_coin)
-
-pickle_in = open(f'Project/level{level}_data', 'rb')
-world_data = pickle.load(pickle_in)
-world = World(world_data)
+life = Life()
 
 player = Player(reset_coordinates[0], reset_coordinates[1])
 boss = Boss(reset_coordinates[0] + 650, reset_coordinates[1])
-life = Life()
-restart_button = Button(screen_width//2 - 50, screen_height //
-                        2 + 100, pygame.image.load('Project/img/restart_btn.png'))
-start_button = Button(screen_width // 2 - 350, screen_height //
-                      2, pygame.image.load('Project/img/start_btn.png'))
-exit_button = Button(screen_width // 2 - 20, screen_height //
-                     2, pygame.image.load('Project/img/exit_btn.png'))
-
-small_shot_card = Button(70, screen_height // 2 - 100,
-                         pygame.image.load('Project/img/small_shot_card.png'))
-medium_shot_card = Button(300, screen_height // 2 - 100,
-                          pygame.image.load('Project/img/medium_shot_card.png'))
-large_shot_card = Button(530, screen_height // 2 - 100,
-                         pygame.image.load('Project/img/large_shot_card.png'))
-xl_shot_card = Button(760, screen_height // 2 - 100,
-                      pygame.image.load('Project/img/xl_shot_card.png'))
-
 
 run = True
 
-previous = 0
 
 while run:
 
