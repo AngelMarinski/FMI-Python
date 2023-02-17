@@ -25,12 +25,29 @@ lifes = 3
 reset_coordinates = (100, screen_height - 130)
 boss_coordinates = (reset_coordinates[0] + 650, 650)
 menu = True
-wepon_menu = True
-level = 3
+weapon_menu = True
+weapon_menu_text = False
+level = 1
 final_level = 3
 score = 0
 shot_damage = 100
 is_won = False
+
+fire_shot_img = pygame.image.load('Project/img/small_shot.png')
+fire_shot_damage = 5
+fire_shot_price = 2
+
+fire_blast_img = pygame.image.load('Project/img/medium_shot.png')
+fire_blast_damage = 10
+fire_blast_price = 5
+
+fire_wave_img = pygame.image.load('Project/img/large_shot.png')
+fire_wave_damage = 25
+fire_wave_price = 10
+
+fire_ball_img = pygame.image.load('Project/img/xl_shot.png')
+fire_ball_damage = 50
+fire_ball_price = 16
 
 # text section
 font_score = pygame.font.SysFont('Bauhaus 93', 30)
@@ -83,6 +100,8 @@ class Player():
         self.in_air = False
         self.shot_cooldown = 30
         self.shot_counter = 30
+        self.shot_img = fire_shot_img
+        self.shot_dmg = fire_shot_damage
 
     def animation(self):
         if self.count >= self.walk_cooldown:
@@ -177,7 +196,7 @@ class Player():
             score += 1
 
     def level_passed(self):
-        global level, world_data, world
+        global level, world_data, world, weapon_menu
         if pygame.sprite.spritecollide(self, exit_grp, False):
             level += 1
             world_data = []
@@ -186,7 +205,8 @@ class Player():
             exit_grp.empty()
             coin_grp.empty()
 
-            print(level)
+            if level == final_level:
+                weapon_menu = True
 
             pickle_in = open(f'Project/level{level}_data', 'rb')
             world_data = pickle.load(pickle_in)
@@ -194,7 +214,7 @@ class Player():
             self.reset()
 
     def update(self):
-        global level
+        global level, shot_damage
         xchange = 0
         ychange = 0
 
@@ -223,11 +243,12 @@ class Player():
                 elif self.direction < 0:
                     self.image = self.images_left[self.index]
             if key[pygame.K_SPACE] and level == final_level and self.shot_counter >= self.shot_cooldown:
-                shot = Shot(pygame.image.load('Project/img/xl_shot.png'),
-                            10, self.rect.x, self.rect.y, self.direction)
+                shot = Shot(self.shot_img,
+                            self.shot_dmg, self.rect.x, self.rect.y, self.direction)
 
                 shot_grp.add(shot)
                 self.shot_counter = 0
+                shot_damage = self.shot_dmg
 
             self.shot_counter += 1
 
@@ -244,7 +265,8 @@ class Player():
             self.game_over_collisions()
 
             # check for collision with boss
-            self.boss_collision()
+            if level == final_level:
+                self.boss_collision()
 
             self.level_passed()
             self.is_coin_picked()
@@ -609,11 +631,49 @@ while run:
                   text_col, tile_size - 10, 10)
         coin_grp.draw(screen)
 
-        if wepon_menu:
-            small_shot_card.draw()
-            medium_shot_card.draw()
-            large_shot_card.draw()
-            xl_shot_card.draw()
+        if weapon_menu:
+            draw_text('Choose your weapon:', font_game_over, game_over_color,
+                      screen_width // 2 - 350, screen_height // 2 - 200)
+
+            if weapon_menu_text:
+                draw_text('Not enough coins!', font_game_over, game_over_color,
+                          screen_width // 2 - 280, screen_height // 2 + 200)
+            if small_shot_card.draw():
+                if score < fire_shot_price:
+                    weapon_menu_text = True
+                else:
+                    score -= fire_shot_price
+                    player.shot_img = fire_shot_img
+                    player.shot_dmg = fire_shot_damage
+                    weapon_menu = False
+                    weapon_menu_text = False
+            if medium_shot_card.draw():
+                if score < fire_blast_price:
+                    weapon_menu_text = True
+                else:
+                    score -= fire_blast_price
+                    player.shot_img = fire_blast_img
+                    player.shot_dmg = fire_blast_damage
+                    weapon_menu = False
+                    weapon_menu_text = False
+            if large_shot_card.draw():
+                if score < fire_wave_price:
+                    weapon_menu_text = True
+                else:
+                    score -= fire_wave_price
+                    player.shot_img = fire_wave_img
+                    player.shot_dmg = fire_wave_damage
+                    weapon_menu = False
+                    weapon_menu_text = False
+            if xl_shot_card.draw():
+                if score < fire_ball_price:
+                    weapon_menu_text = True
+                else:
+                    score -= fire_ball_price
+                    player.shot_img = fire_ball_img
+                    player.shot_dmg = fire_ball_damage
+                    weapon_menu = False
+                    weapon_menu_text = False
         else:
             if is_won == False:
 
