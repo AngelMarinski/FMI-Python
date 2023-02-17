@@ -1,4 +1,5 @@
 ## "От девет планини в десета"
+Fun two-dimensional game created for FMI Python 2022/2023 course
 
 ## Description
 "От девет планини в десета" is a Super Mario type of game where you have to complete multiple levels and defeat the Rock monster in order to win. But be aware that every level possesses obsticles like lava and little green monsters. While passing the levels, the player is collection coins used for weapon purchasing before he enters the monster arena.
