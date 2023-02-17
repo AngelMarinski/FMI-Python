@@ -28,6 +28,12 @@ coin_fx.set_volume(0.5)
 jump_fx = pygame.mixer.Sound('Project/img/jump.wav')
 jump_fx.set_volume(0.5)
 
+boss_jump_fx = pygame.mixer.Sound('Project/img/final_boss_jump.mp3')
+boss_jump_fx.set_volume(0.6)
+
+shooting_fx = pygame.mixer.Sound('Project/img/shooting_sound.mp3')
+shooting_fx.set_volume(0.5)
+
 game_over_fx = pygame.mixer.Sound('Project/img/game_over.wav')
 game_over_fx.set_volume(0.5)
 
@@ -286,6 +292,7 @@ class Player():
                             self.shot_dmg, self.rect.x, self.rect.y, self.direction)
 
                 shot_grp.add(shot)
+                shooting_fx.play()
                 self.shot_counter = 0
                 shot_damage = self.shot_dmg
 
@@ -350,6 +357,7 @@ class Boss():
         self.health_bar_ration = self.max_health / self.health_bar_length
         self.health_change_speed = 5
         self.health_counter = 0
+        self.sound_counter = 0
 
     def get_damage(self):
         global shot_damage, is_won
@@ -405,6 +413,7 @@ class Boss():
 
         if self.cooldown <= self.counter:
             if self.in_air == False:
+                boss_jump_fx.play()
                 self.velocity_x = self.pos_towards_player(player.rect)
                 self.velocity_y -= 20
                 self.in_air = True
