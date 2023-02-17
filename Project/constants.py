@@ -47,9 +47,9 @@ boss_coordinates = (reset_coordinates[0] + 650, 650)
 menu = True
 weapon_menu = True
 weapon_menu_text = False
-level = 3
+level = 1
 final_level = 3
-score = 2
+score = 0
 shot_damage = 100
 is_won = False
 
